@@ -17,45 +17,47 @@
 
 namespace Windows\Registry;
 
+use VARIANT;
+
 /**
  * A wrapper around the Microsoft Windows StdRegProv WMI class.
  *
  * @see http://msdn.microsoft.com/en-us/library/aa393664.aspx
  *
- * @method int  checkAccess(int $hDefKey, string $sSubKeyName, int $uRequired, bool &$bGranted)                  Verifies that the user has the specified access permissions.
- * @method void createKey(int $hDefKey, string $sSubKeyName)                                                     Creates a subkey.
- * @method int  deleteKey(int $hDefKey, string $sSubKeyName)                                                     Deletes a subkey.
- * @method int  deleteValue(int $hDefKey, string $sSubKeyName, string $sValueName)                               Deletes a named value.
- * @method int  enumKey(int $hDefKey, string $sSubKeyName, \VARIANT &$sNames)                                    Enumerates subkeys.
- * @method int  enumValues(int $hDefKey, string $sSubKeyName, \VARIANT &$sNames, \VARIANT &$Types)               Enumerates the named values of a key.
- * @method int  getBinaryValue(int $hDefKey, string $sSubKeyName, string $sValueName, \VARIANT &$uValue)         Gets the binary data value of a named value.
- * @method int  getDWORDValue(int $hDefKey, string $sSubKeyName, string $sValueName, \VARIANT &$uValue)          Gets the DWORD data value of a named value.
- * @method int  getExpandedStringValue(int $hDefKey, string $sSubKeyName, string $sValueName, \VARIANT &$uValue) Gets the expanded string data value of a named value.
- * @method int  getMultiStringValue(int $hDefKey, string $sSubKeyName, string $sValueName, \VARIANT &$uValue)    Gets the multiple string data values of a named value.
- * @method int  getQWORDValue(int $hDefKey, string $sSubKeyName, string $sValueName, \VARIANT &$uValue)          Gets the QWORD data values of a named value.
- * @method int  getSecurityDescriptor(int $hDefKey, string $sSubKeyName, \VARIANT &$Descriptor)                  Gets the security descriptor for a key.
- * @method int  getStringValue(int $hDefKey, string $sSubKeyName, string $sValueName, \VARIANT &$uValue)         Gets the string data value of a named value.
- * @method int  setBinaryValue(int $hDefKey, string $sSubKeyName, string $sValueName, \VARIANT $uValue)          Sets the binary data value of a named value.
- * @method int  setDWORDValue(int $hDefKey, string $sSubKeyName, string $sValueName, \VARIANT $uValue)           Sets the DWORD data value of a named value.
- * @method int  setExpandedStringValue(int $hDefKey, string $sSubKeyName, string $sValueName, \VARIANT $uValue)  Sets the expanded string data value of a named value.
- * @method int  setMultiStringValue(int $hDefKey, string $sSubKeyName, string $sValueName, \VARIANT $uValue)     Sets the multiple string values of a named value.
- * @method int  setQWORDValue(int $hDefKey, string $sSubKeyName, string $sValueName, \VARIANT $uValue)           Sets the QWORD data values of a named value.
- * @method int  setSecurityDescriptor(int $hDefKey, string $sSubKeyName, \VARIANT $Descriptor)                   Sets the security descriptor for a key.
- * @method int  setStringValue(int $hDefKey, string $sSubKeyName, string $sValueName, \VARIANT $uValue)          Sets the string value of a named value.
+ * @method int  checkAccess(int $hDefKey, string $sSubKeyName, int $uRequired, bool &$bGranted)                 Verifies that the user has the specified access permissions. Not supported.
+ * @method void createKey(int $hDefKey, string $sSubKeyName)                                                    Creates a sub-key.
+ * @method int  deleteKey(int $hDefKey, string $sSubKeyName)                                                    Deletes a sub-key.
+ * @method int  deleteValue(int $hDefKey, string $sSubKeyName, string $sValueName)                              Deletes a named value.
+ * @method int  enumKey(int $hDefKey, string $sSubKeyName, VARIANT &$sNames)                                    Enumerates sub-keys.
+ * @method int  enumValues(int $hDefKey, string $sSubKeyName, VARIANT &$sNames, VARIANT &$Types)                Enumerates the named values of a key.
+ * @method int  getBinaryValue(int $hDefKey, string $sSubKeyName, string $sValueName, VARIANT &$uValue)         Gets the binary data value of a named value.
+ * @method int  getDWORDValue(int $hDefKey, string $sSubKeyName, string $sValueName, VARIANT &$uValue)          Gets the DWORD data value of a named value.
+ * @method int  getExpandedStringValue(int $hDefKey, string $sSubKeyName, string $sValueName, string &$uValue)  Gets the expanded string data value of a named value.
+ * @method int  getMultiStringValue(int $hDefKey, string $sSubKeyName, string $sValueName, VARIANT &$uValue)    Gets the multiple string data values of a named value.
+ * @method int  getQWORDValue(int $hDefKey, string $sSubKeyName, string $sValueName, VARIANT &$uValue)          Gets the QWORD data values of a named value.
+ * @method int  getSecurityDescriptor(int $hDefKey, string $sSubKeyName, &$Descriptor)                          Gets the security descriptor for a key. Not supported.
+ * @method int  getStringValue(int $hDefKey, string $sSubKeyName, string $sValueName, string &$uValue)          Gets the string data value of a named value.
+ * @method int  setBinaryValue(int $hDefKey, string $sSubKeyName, string $sValueName, int $uValue)              Sets the binary data value of a named value.
+ * @method int  setDWORDValue(int $hDefKey, string $sSubKeyName, string $sValueName, int $uValue)               Sets the DWORD data value of a named value.
+ * @method int  setExpandedStringValue(int $hDefKey, string $sSubKeyName, string $sValueName, string $uValue)   Sets the expanded string data value of a named value.
+ * @method int  setMultiStringValue(int $hDefKey, string $sSubKeyName, string $sValueName, VARIANT $uValue)     Sets the multiple string values of a named value.
+ * @method int  setQWORDValue(int $hDefKey, string $sSubKeyName, string $sValueName, int $uValue)               Sets the QWORD data values of a named value. Not supported.
+ * @method int  setSecurityDescriptor(int $hDefKey, string $sSubKeyName, $Descriptor)                           Sets the security descriptor for a key. Not supported.
+ * @method int  setStringValue(int $hDefKey, string $sSubKeyName, string $sValueName, string $uValue)           Sets the string value of a named value.
  */
 class RegistryHandle
 {
     /**
-     * @var \VARIANT An StdRegProv instance.
+     * @var VARIANT An StdRegProv instance.
      */
     protected $stdRegProv;
 
     /**
      * Creates a new wrapper for an StdRegProv instance.
      *
-     * @param \VARIANT $stdRegProv The StdRegProv instance to wrap.
+     * @param VARIANT $stdRegProv The StdRegProv instance to wrap.
      */
-    public function __construct(\VARIANT $stdRegProv)
+    public function __construct(VARIANT $stdRegProv)
     {
         $this->stdRegProv = $stdRegProv;
     }

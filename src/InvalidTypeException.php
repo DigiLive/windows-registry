@@ -17,6 +17,8 @@
 
 namespace Windows\Registry;
 
-class InvalidTypeException extends \InvalidArgumentException implements Exception
+use InvalidArgumentException;
+
+class InvalidTypeException extends InvalidArgumentException implements Exception
 {
 }

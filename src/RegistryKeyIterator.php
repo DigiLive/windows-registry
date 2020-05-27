@@ -17,10 +17,13 @@
 
 namespace Windows\Registry;
 
+use RecursiveIterator;
+use VARIANT;
+
 /**
- * Iterates over the subkeys of a registry key.
+ * Iterates over the sub-keys of a registry key.
  */
-class RegistryKeyIterator implements \RecursiveIterator
+class RegistryKeyIterator implements RecursiveIterator
 {
     /**
      * @var RegistryHandle An open registry handle.
@@ -38,12 +41,12 @@ class RegistryKeyIterator implements \RecursiveIterator
     protected $pointer = 0;
 
     /**
-     * @var int The number of subkeys we are iterating over.
+     * @var int The number of sub-keys we are iterating over.
      */
     protected $count = 0;
 
     /**
-     * @var \VARIANT A (hopefully) enumerable variant containing the names of subkeys.
+     * @var VARIANT A (hopefully) enumerable variant containing the names of sub-keys.
      */
     protected $subKeyNames;
 
@@ -51,7 +54,7 @@ class RegistryKeyIterator implements \RecursiveIterator
      * Creates a new registry key iterator.
      *
      * @param RegistryHandle $handle The WMI registry provider handle to use.
-     * @param RegistryKey    $key    The registry key whose subkeys to iterate over.
+     * @param RegistryKey    $key    The registry key whose sub-keys to iterate over.
      */
     public function __construct(RegistryHandle $handle, RegistryKey $key)
     {
@@ -60,7 +63,7 @@ class RegistryKeyIterator implements \RecursiveIterator
     }
 
     /**
-     * Returns if a subkey iterator can be created for the current key.
+     * Returns if a sub-key iterator can be created for the current key.
      *
      * @return bool
      */
@@ -72,7 +75,7 @@ class RegistryKeyIterator implements \RecursiveIterator
     }
 
     /**
-     * Gets an iterator for subkeys of the current registry key.
+     * Gets an iterator for sub-keys of the current registry key.
      *
      * @return RegistryKeyIterator
      */
@@ -90,10 +93,10 @@ class RegistryKeyIterator implements \RecursiveIterator
         $this->pointer = 0;
         $this->count = 0;
 
-        // create an empty variant to store subkey names
-        $this->subKeyNames = new \VARIANT();
+        // create an empty variant to store sub-key names
+        $this->subKeyNames = new VARIANT();
 
-        // attempt to enumerate subkeys
+        // attempt to enumerate sub-keys
         $errorCode = $this->handle->enumKey(
             $this->registryKey->getHive(),
             $this->registryKey->getQualifiedName(),
@@ -101,8 +104,9 @@ class RegistryKeyIterator implements \RecursiveIterator
 
         // make sure the enum isn't empty
         if ($errorCode === 0 && (variant_get_type($this->subKeyNames) & VT_ARRAY)) {
-            // store the number of subkeys
-            $this->count = count($this->subKeyNames);
+            // store the number of sub-keys
+            /** @noinspection PhpParamsInspection */
+            $this->count = count($this->subKeyNames); // VARIANT is countable.
         }
     }
 

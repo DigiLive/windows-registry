@@ -17,6 +17,8 @@
 
 namespace Windows\Registry;
 
-class ValueNotFoundException extends \RuntimeException implements Exception
+use RuntimeException;
+
+class ValueNotFoundException extends RuntimeException implements Exception
 {
 }

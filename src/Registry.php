@@ -17,9 +17,10 @@
 
 namespace Windows\Registry;
 
+use COM;
+
 /**
- * Creates connections to a computer's registry and provides base keys for
- * accessing subkeys.
+ * Creates connections to a computer's registry and provides base keys for accessing sub-keys.
  */
 final class Registry
 {
@@ -42,8 +43,9 @@ final class Registry
     public static function connect($host = '.', $username = null, $password = null)
     {
         // create a WMI connection
-        $swbemLocator = new \COM('WbemScripting.SWbemLocator', null, CP_UTF8);
-        $swbemService = $swbemLocator->ConnectServer($host, 'root\default', $username, $password);
+        $swbemLocator = new COM('WbemScripting.SWbemLocator', null, CP_UTF8);
+        /** @noinspection PhpUndefinedMethodInspection */
+        $swbemService                                = $swbemLocator->ConnectServer($host, 'root\default', $username, $password);
         $swbemService->Security_->ImpersonationLevel = 3;
 
         // initialize registry provider
