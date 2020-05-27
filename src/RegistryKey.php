@@ -17,6 +17,8 @@
 
 namespace Windows\Registry;
 
+use VARIANT;
+
 /**
  * Represents a single key in the Windows registry.
  */
@@ -102,9 +104,9 @@ final class RegistryKey
     }
 
     /**
-     * Gets a registry subkey with the specified name.
+     * Gets a registry sub-key with the specified name.
      *
-     * @param string $name The name or path of the subkey.
+     * @param string $name The name or path of the sub-key.
      *
      * @return RegistryKey
      */
@@ -112,8 +114,8 @@ final class RegistryKey
     {
         $subKeyName = empty($this->name) ? $name : $this->name.'\\'.$name;
 
-        // call EnumKeys on the subkey to check if it exists
-        $sNames = new \VARIANT();
+        // call EnumKeys on the sub-key to check if it exists
+        $sNames = new VARIANT();
         if ($this->handle->enumKey($this->hive, $subKeyName, $sNames) == 0) {
             return new static($this->handle, $this->hive, $subKeyName);
         }
@@ -122,23 +124,24 @@ final class RegistryKey
     }
 
     /**
-     * Gets the parent registry key of the current subkey, or null if the key
+     * Gets the parent registry key of the current sub-key, or null if the key
      * is a root key.
      *
      * @return RegistryKey|null
      */
     public function getParentKey()
     {
-        // check if we have a parent key
-        if (dirname($this->name) !== '.') {
-            return new static($this->handle, $this->hive, dirname($this->name));
+        $parentKeyName = dirname($this->name);
+        if ($parentKeyName !== '.') {
+            return new static($this->handle, $this->hive, $parentKeyName);
         }
 
-        return;
+        // The parent key is a hive.
+        return new static($this->handle, $this->hive, '');
     }
 
     /**
-     * Creates a new registry subkey.
+     * Creates a new registry sub-key.
      *
      * @param string $name The name or path of the key relative to the current key.
      *
@@ -152,13 +155,13 @@ final class RegistryKey
             throw new OperationFailedException("Failed to create key \"{$subKeyName}\".");
         }
 
-        return new static($this->handle, $hive, $name);
+        return new static($this->handle, $this->hive, $name);
     }
 
     /**
-     * Deletes a registry subkey.
+     * Deletes a registry sub-key.
      *
-     * @param string $name The name or path of the subkey to delete.
+     * @param string $name The name or path of the sub-key to delete.
      */
     public function deleteSubKey($name)
     {
@@ -170,7 +173,7 @@ final class RegistryKey
     }
 
     /**
-     * Gets an iterator for iterating over subkeys of this key.
+     * Gets an iterator for iterating over sub-keys of this key.
      *
      * @return RegistryKeyIterator
      */
@@ -188,13 +191,13 @@ final class RegistryKey
      */
     public function valueExists($name)
     {
-        // look for the suspicious "1" error code (which I believe to mean does
-        // not exist)
+        // look for the suspicious "1" error code (which I believe to mean does not exist)
+        $value = null;
         return $this->handle->getStringValue(
             $this->hive,
             $this->name,
             $name,
-            null
+            $value
         ) !== 1;
     }
 
@@ -209,7 +212,7 @@ final class RegistryKey
     public function getValue($name, $type = null)
     {
         // create a variant to store the key value data
-        $valueData = new \VARIANT();
+        $valueData = new VARIANT();
 
         // auto detect type
         // not recommended - see getValueType() for details
@@ -301,9 +304,6 @@ final class RegistryKey
      */
     public function setValue($name, $value, $type)
     {
-        // store error code to check for success later
-        $errorCode = 0;
-
         // set differently depending on type
         switch ($type) {
             case self::TYPE_SZ:
@@ -318,7 +318,7 @@ final class RegistryKey
                 if (is_string($value)) {
                     $value = array_map('ord', str_split($value));
                 }
-                $errorCode = $this->handle->setBinaryValue($this->defKey, $this->name, $name, $value);
+                $errorCode = $this->handle->setBinaryValue($this->hive, $this->name, $name, $value);
                 break;
 
             case self::TYPE_DWORD:
@@ -327,9 +327,9 @@ final class RegistryKey
 
             case self::TYPE_MULTI_SZ:
                 if (!is_array($value)) {
-                    throw new Exception('Cannot set non-array type as MultiString.');
+                    throw new InvalidTypeException('Cannot set non-array type as MultiString.');
                 }
-                $errorCode = $this->handle->setMultiStringValue($this->defKey, $this->name, $name, $value);
+                $errorCode = $this->handle->setMultiStringValue($this->hive, $this->name, $name, $value);
                 break;
 
             default:
@@ -385,12 +385,12 @@ final class RegistryKey
     {
         // iterate over all values in the key
         $iterator = $this->getValueIterator();
-        foreach ($iterator as $key => $value) {
-            // is this the value we are looking for?
-            if ($key === $name) {
-                // value is now cached through the iterator
+        $iterator->rewind();
+        while ($iterator->valid()) {
+            if ($iterator->key() === $name) {
                 return $iterator->currentType();
             }
+            $iterator->next();
         }
 
         throw new ValueNotFoundException("The value '{$name}' does not exist.");

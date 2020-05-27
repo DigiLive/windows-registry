@@ -17,6 +17,8 @@
 
 namespace Windows\Registry;
 
-class OperationFailedException extends \RuntimeException implements Exception
+use RuntimeException;
+
+class OperationFailedException extends RuntimeException implements Exception
 {
 }

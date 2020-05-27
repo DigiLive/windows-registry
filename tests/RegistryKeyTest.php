@@ -17,20 +17,28 @@
 
 namespace Windows\Registry\Tests;
 
+use PHPUnit\Framework\TestCase;
 use Windows\Registry\Registry;
 use Windows\Registry\RegistryHandle;
 use Windows\Registry\RegistryKey;
 
-class RegistryKeyTest extends \PHPUnit_Framework_TestCase
+class RegistryKeyTest extends TestCase
 {
     protected $stubHandle;
 
+    /**
+     * @param int    $hive
+     * @param string $name
+     *
+     * @return RegistryKey
+     * @noinspection PhpParamsInspection
+     */
     protected function newKey($hive = Registry::HKEY_LOCAL_MACHINE, $name = 'Software')
     {
         return new RegistryKey($this->stubHandle, $hive, $name);
     }
 
-    public function setUp()
+    public function setUp(): void
     {
         $this->stubHandle = $this->getMockBuilder(RegistryHandle::class)->disableOriginalConstructor()->getMock();
     }

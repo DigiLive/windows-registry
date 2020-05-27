@@ -17,10 +17,13 @@
 
 namespace Windows\Registry;
 
+use Iterator;
+use VARIANT;
+
 /**
  * Iterates over values in a registry key.
  */
-class RegistryValueIterator implements \Iterator
+class RegistryValueIterator implements Iterator
 {
     /**
      * @var RegistryHandle An open registry handle.
@@ -43,12 +46,12 @@ class RegistryValueIterator implements \Iterator
     protected $count = 0;
 
     /**
-     * @var \VARIANT A (hopefully) enumerable variant containing the value names.
+     * @var VARIANT A (hopefully) enumerable variant containing the value names.
      */
     protected $valueNames;
 
     /**
-     * @var \VARIANT A (hopefully) enumerable variant containing the data types of values.
+     * @var VARIANT A (hopefully) enumerable variant containing the data types of values.
      */
     protected $valueTypes;
 
@@ -74,8 +77,8 @@ class RegistryValueIterator implements \Iterator
         $this->count = 0;
 
         // create empty variants to store out params
-        $this->valueNames = new \VARIANT();
-        $this->valueTypes = new \VARIANT();
+        $this->valueNames = new VARIANT();
+        $this->valueTypes = new VARIANT();
 
         // attempt to enumerate values
         $errorCode = $this->handle->enumValues(
@@ -90,7 +93,8 @@ class RegistryValueIterator implements \Iterator
             && (variant_get_type($this->valueNames) & VT_ARRAY)
             && (variant_get_type($this->valueTypes) & VT_ARRAY)) {
             // store the number of values
-            $this->count = count($this->valueNames);
+            /** @noinspection PhpParamsInspection */
+            $this->count = count($this->valueNames); // VARIANT is countable.
         }
     }
 
@@ -118,8 +122,16 @@ class RegistryValueIterator implements \Iterator
     /**
      * Gets the value type of the registry value at the current iteration
      * position.
+     * The following data value types are defined in WinNT.h:
      *
-     * @return RegistryValueType
+     * REG_SZ (1)
+     * REG_EXPAND_SZ (2)
+     * REG_BINARY (3)
+     * REG_DWORD (4)
+     * REG_MULTI_SZ (7)
+     * REG_QWORD (11)
+     *
+     * @return int Type of the registry value.
      */
     public function currentType()
     {

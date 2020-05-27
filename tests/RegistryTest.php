@@ -17,15 +17,20 @@
 
 namespace Windows\Registry\Tests;
 
+use PHPUnit\Framework\TestCase;
 use Windows\Registry\Registry;
 use Windows\Registry\RegistryHandle;
 
-class RegistryTest extends \PHPUnit_Framework_TestCase
+class RegistryTest extends TestCase
 {
     protected $stubHandle;
     protected $registry;
 
-    public function setUp()
+    /**
+     *
+     * @noinspection PhpParamsInspection
+     */
+    public function setUp(): void
     {
         $this->stubHandle = $this->getMockBuilder(RegistryHandle::class)->disableOriginalConstructor()->getMock();
         $this->registry = new Registry($this->stubHandle);
