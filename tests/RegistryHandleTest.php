@@ -1,12 +1,6 @@
 <?php
 /**
- * Copyright 2014 Stephen Coakley <me@stephencoakley.com>
  * Copyright 2020 DigiLive <info@digilive.nl>
- *
- * This file has been modified by DigiLive.
- * Changes can be tracked on our GitHub website at
- *
- *     https://github.com/DigiLive/windows-registry
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,16 +21,17 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Windows\Registry\Registry;
 use Windows\Registry\RegistryHandle;
+use Windows\Registry\RegistryKey;
 
 /**
- * Class RegistryTest
+ * Class RegistryHandleTest
  *
  * The script will make a connection to the registry, but the registry handler is mocked so it can't operate on the
  * registry.
  *
  * @package Windows\Registry\Tests
  */
-class RegistryTest extends TestCase
+class RegistryHandleTest extends TestCase
 {
     /**
      * @var MockObject The mocked registry handle.
@@ -58,32 +53,13 @@ class RegistryTest extends TestCase
     }
 
     /**
-     * Test if the instantiated registry key has the same handle as the test class.
-     */
-    public function testGetHandle()
-    {
-        $this->assertSame($this->stubHandle, $this->registry->getHandle());
-    }
-
-    /**
-     * Connect to a registry using the default values.
-     */
-    public function testConnectDefaultReturnsInstance()
-    {
-        $this->assertInstanceOf(Registry::class, $this->registry::connect());
-    }
-
-    /**
-     * Test getting registry trees.
+     * Test if a key is received when calling a random, but valid RegistryKey method.
      *
-     * Also known as hives.
+     * @see RegistryKey
      */
-    public function testGetTrees()
+    public function test__call()
     {
-        $this->assertSame(Registry::HKEY_CLASSES_ROOT, $this->registry::connect()->getClassesRoot()->getHive());
-        $this->assertSame(Registry::HKEY_CURRENT_USER, $this->registry::connect()->getCurrentUser()->getHive());
-        $this->assertSame(Registry::HKEY_CURRENT_CONFIG, $this->registry::connect()->getCurrentConfig()->getHive());
-        $this->assertSame(Registry::HKEY_LOCAL_MACHINE, $this->registry::connect()->getLocalMachine()->getHive());
-        $this->assertSame(Registry::HKEY_USERS, $this->registry::connect()->getUsers()->getHive());
+        $HKLM = $this->registry::connect()->getLocalMachine();
+        $this->assertInstanceOf(RegistryKey::class, $HKLM->getSubKey('SOFTWARE\Microsoft\Windows\CurrentVersion'));
     }
 }
