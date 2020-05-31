@@ -399,15 +399,36 @@ class RegistryKeyTest extends TestCase
     /**
      * Test failure of deleting a value when the registry handle returns a failure value.
      *
+     * The tested method will check if the value exists after the operation failed.
+     *
      * Note: This test changes the returnValue of mocked method __call of the registry handle for the following
      *       tests!
      *
      * @noinspection PhpVoidFunctionResultUsedInspection
      */
-    public function testDeleteValueTrowsException()
+    public function testDeleteValueTrowsException1()
+    {
+        self::$FollowingTestStdRegProvResult = 2;
+        $this->expectException(ValueNotFoundException::class);
+        $key = $this->getSomeKey();
+
+        $this->assertNull($key->deleteValue('someKey'));
+    }
+
+    /**
+     * Test failure of deleting a value when the registry handle returns a failure value.
+     *
+     * The tested method will NOT check if the value exists after the operation failed.
+     *
+     * Note: This test changes the returnValue of mocked method __call of the registry handle for the following
+     *       tests!
+     *
+     * @noinspection PhpVoidFunctionResultUsedInspection
+     */
+    public function testDeleteValueTrowsException2()
     {
         self::$FollowingTestStdRegProvResult = 0;
-        $this->expectException(ValueNotFoundException::class);
+        $this->expectException(OperationFailedException::class);
         $key = $this->getSomeKey();
 
         $this->assertNull($key->deleteValue('someKey'));
