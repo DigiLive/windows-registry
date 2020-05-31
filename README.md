@@ -12,7 +12,7 @@ below before using.
 ## Features
 -   Read and write access to any hive, key, or value in the registry (that you have permissions to)
 -   Automatic conversion between all registry value data types to PHP scalar types
--   Lazy-loaded iterators over lists of values and recursive iterators over keys and sub-keys
+-   Lazy-loaded iterators over lists of values and recursive iterators over keys and subKeys
 -   Ability to connect to registries on remote computers using a remote WMI (Windows Management Instrumentation) connection (see Microsoft's docs on [how to connect to WMI remotely](https://msdn.microsoft.com/en-us/library/aa389290%28v=vs.85%29.aspx) for details)
 
 ## Requirements
@@ -65,7 +65,7 @@ catch (Registry\Exception $e)
 }
 ```
 
-You can also iterate over sub-keys and values using built-in iterators:
+You can also iterate over subKeys and values using built-in iterators:
 
 ```php
 foreach ($key->getSubKeyIterator() as $name => $subKey)

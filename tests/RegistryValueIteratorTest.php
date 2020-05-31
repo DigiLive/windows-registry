@@ -32,7 +32,7 @@ use Windows\Registry\RegistryKey;
 class RegistryValueIteratorTest extends TestCase
 {
     /**
-     * @var RegistryHandle Handle which operates on the registry.
+     * @var RegistryHandle The WMI registry provider handle to use.
      */
     protected $handle;
 

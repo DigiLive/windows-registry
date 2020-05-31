@@ -348,7 +348,7 @@ class RegistryKeyTest extends TestCase
         $this->expectException(InvalidTypeException::class);
         $key = $this->getSomeKey();
 
-        $this->assertNull($key->setValue('someKey', 'someValue', 'nonExistingType'));
+        $this->assertNull($key->setValue('someKey', 'someValue', 0));
     }
 
     /**
