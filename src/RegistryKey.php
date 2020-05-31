@@ -44,8 +44,8 @@ final class RegistryKey
 
     /**
      * @var int The registry hive the key is located in.
-     *          Note: Although a hive is represented as a hex number, which is an int, php will cast this value into a float or
-     *                double because the value causes an overflow.
+     *          Note: Although a hive is represented as a hex number, which is an int, php will cast this value into a
+     *          float or double because the value causes an overflow.
      */
     protected $hive;
 
@@ -55,7 +55,7 @@ final class RegistryKey
     protected $name;
 
     /**
-     * Creates a new key value object.
+     * Create a new key value object.
      *
      * Note: Although a hive is represented as a hex number, which is an int, php will cast this value into a float or
      * double because the value causes an overflow.
@@ -72,21 +72,7 @@ final class RegistryKey
     }
 
     /**
-     * Gets the local (unqualified) name of the key.
-     *
-     * @return string Name of the key.
-     */
-    public function getName(): string
-    {
-        if (strpos($this->name, '\\') !== false) {
-            return substr($this->name, strpos($this->name, '\\') + 1);
-        }
-
-        return $this->name;
-    }
-
-    /**
-     * Gets the fully-qualified name of the key.
+     * Get the fully-qualified name of the key.
      *
      * @return string Name of the key.
      */
@@ -96,7 +82,7 @@ final class RegistryKey
     }
 
     /**
-     * Gets the registry hive the key is located in.
+     * Get the registry hive the key is located in.
      *
      * Note: Although a hive is represented as a hex number, which is an int, php will cast this value into a float or
      * double because the value causes an overflow.
@@ -109,7 +95,7 @@ final class RegistryKey
     }
 
     /**
-     * Gets the underlying handle object used to access the registry.
+     * Get the underlying handle object used to access the registry.
      *
      * @return RegistryHandle The WMI registry provider handle to use..
      */
@@ -119,7 +105,65 @@ final class RegistryKey
     }
 
     /**
-     * Gets a registry subKey with the specified name.
+     * Get the parent registry key of the current subKey, or null if the key is a root key.
+     *
+     * @return RegistryKey|null Parent of the key or null.
+     */
+    public function getParentKey()
+    {
+        $parentKeyName = dirname($this->name);
+        if ($parentKeyName !== '.') {
+            return new static($this->handle, $this->hive, $parentKeyName);
+        }
+
+        // The parent key is a hive.
+        return new static($this->handle, $this->hive, '');
+    }
+
+    /**
+     * Create a new registry subKey.
+     *
+     * @param string $name The name or path of the key relative to the current key.
+     *
+     * @return RegistryKey The new key.
+     * @throws OperationFailedException When creating the key failed.
+     */
+    public function createSubKey(string $name): RegistryKey
+    {
+        $subKeyName = empty($this->name) ? $name : $this->name . '\\' . $name;
+
+        if ($this->handle->createKey($this->hive, $subKeyName) !== 0) {
+            throw new OperationFailedException("Failed to create key \"{$subKeyName}\".");
+        }
+
+        return new static($this->handle, $this->hive, $name);
+    }
+
+    /**
+     * Delete a subKey including contents.
+     *
+     * @param string $name The name or path of the key relative to the current key.
+     */
+    public function deleteSubKeyRecursive(string $name)
+    {
+        // Delete subKeys.
+        $currentKey = $this->getSubKey($name);
+
+        foreach ($currentKey->getSubKeyIterator() as $subKeyName => $subKey) {
+            // Delete subKey values.
+            foreach ($subKey->getValueIterator() as $valueName => $valueValue) {
+                $subKey->deleteValue($valueName);
+            }
+
+            // Delete nested subKeys.
+            $this->deleteSubKeyRecursive($subKey->getName());
+        }
+
+        $this->deleteSubKey($name);
+    }
+
+    /**
+     * Get a registry subKey with the specified name.
      *
      * @param string $name The name or path of the subKey.
      *
@@ -140,42 +184,86 @@ final class RegistryKey
     }
 
     /**
-     * Gets the parent registry key of the current subKey, or null if the key is a root key.
+     * Get an iterator for iterating over subKeys of this key.
      *
-     * @return RegistryKey|null Parent of the key or null.
+     * @return RegistryKeyIterator subKey Iterator.
      */
-    public function getParentKey()
+    public function getSubKeyIterator(): RegistryKeyIterator
     {
-        $parentKeyName = dirname($this->name);
-        if ($parentKeyName !== '.') {
-            return new static($this->handle, $this->hive, $parentKeyName);
-        }
-
-        // The parent key is a hive.
-        return new static($this->handle, $this->hive, '');
+        return new RegistryKeyIterator($this->handle, $this);
     }
 
     /**
-     * Creates a new registry subKey.
+     * Get an iterator for iterating over key values.
      *
-     * @param string $name The name or path of the key relative to the current key.
-     *
-     * @return RegistryKey The new key.
-     * @throws OperationFailedException When creating the key failed.
+     * @return RegistryValueIterator Value Iterator.
      */
-    public function createSubKey(string $name): RegistryKey
+    public function getValueIterator(): RegistryValueIterator
     {
-        $subKeyName = empty($this->name) ? $name : $this->name . '\\' . $name;
-
-        if ($this->handle->createKey($this->hive, $subKeyName) !== 0) {
-            throw new OperationFailedException("Failed to create key \"{$subKeyName}\".");
-        }
-
-        return new static($this->handle, $this->hive, $name);
+        return new RegistryValueIterator($this->handle, $this);
     }
 
     /**
-     * Deletes a registry subKey.
+     * Delete a named value from the key.
+     *
+     * @param string $name The name of the named value to delete.
+     *
+     * @throws OperationFailedException When deleting the value failed.
+     * @throws ValueNotFoundException When the value doesn't exist.
+     */
+    public function deleteValue(string $name)
+    {
+        // Try to delete the value
+        $errorCode = $this->handle->deleteValue($this->hive, $this->name, $name);
+
+        if ($errorCode !== 0) {
+            // Operation failed.
+            if (!$this->valueExists($name)) {
+                // Operation failed because value doesn't exist (anymore).
+                throw new ValueNotFoundException("The value '{$name}' does not exist.");
+            }
+
+            // Operation failed because of other reason.
+            throw new OperationFailedException("Failed to delete value '{$name}' from key '$this->name}'.");
+        }
+    }
+
+    /**
+     * Check if a named value exists.
+     *
+     * @param string $name The name of the value to check.
+     *
+     * @return bool True if the value exists, otherwise false.
+     */
+    public function valueExists(string $name): bool
+    {
+        $value = null;
+
+        // Validate the return value "1" (Assuming '1' means the value doesn't exist).
+        return $this->handle->getStringValue(
+                $this->hive,
+                $this->name,
+                $name,
+                $value
+            ) !== 1;
+    }
+
+    /**
+     * Get the local (unqualified) name of the key.
+     *
+     * @return string Name of the key.
+     */
+    public function getName(): string
+    {
+        if (strpos($this->name, '\\') !== false) {
+            return substr($this->name, strpos($this->name, '\\') + 1);
+        }
+
+        return $this->name;
+    }
+
+    /**
+     * Delete a registry subKey.
      *
      * @param string $name The name or path of the subKey to delete.
      *
@@ -191,17 +279,7 @@ final class RegistryKey
     }
 
     /**
-     * Gets an iterator for iterating over subKeys of this key.
-     *
-     * @return RegistryKeyIterator subKey Iterator.
-     */
-    public function getSubKeyIterator(): RegistryKeyIterator
-    {
-        return new RegistryKeyIterator($this->handle, $this);
-    }
-
-    /**
-     * Gets the value data of a named key value.
+     * Get the value data of a named key value.
      *
      * @param string $name The name of the value.
      * @param int    $type The value type of the value.
@@ -288,7 +366,7 @@ final class RegistryKey
     }
 
     /**
-     * Gets the data type of a given value.
+     * Get the data type of a given value.
      *
      * Note: This is a relatively expensive operation. Especially for keys with lots of values.
      *
@@ -313,17 +391,7 @@ final class RegistryKey
     }
 
     /**
-     * Gets an iterator for iterating over key values.
-     *
-     * @return RegistryValueIterator Value Iterator.
-     */
-    public function getValueIterator(): RegistryValueIterator
-    {
-        return new RegistryValueIterator($this->handle, $this);
-    }
-
-    /**
-     * Sets the value data of a named key value.
+     * Set the value data of a named key value.
      *
      * @param string $name  The name of the value.
      * @param mixed  $value The value data of the value.
@@ -371,44 +439,5 @@ final class RegistryKey
             // Setting the value failed.
             throw new OperationFailedException("Failed to write value \"{$name}\".");
         }
-    }
-
-    /**
-     * Deletes a named value from the key.
-     *
-     * @param string $name The name of the named value to delete.
-     *
-     * @throws OperationFailedException When deleting the value failed.
-     * @throws ValueNotFoundException When the value doesn't exist.
-     */
-    public function deleteValue(string $name)
-    {
-        if ($this->handle->deleteValue($this->hive, $this->name, $name) !== 0) {
-            throw new OperationFailedException("Failed to delete value '{$name}' from key '$this->name}'.");
-        }
-
-        if (!$this->valueExists($name)) {
-            throw new ValueNotFoundException("The value '{$name}' does not exist.");
-        }
-    }
-
-    /**
-     * Checks if a named value exists.
-     *
-     * @param string $name The name of the value to check.
-     *
-     * @return bool True if the value exists, otherwise false.
-     */
-    public function valueExists(string $name): bool
-    {
-        $value = null;
-
-        // Validate the return value "1" (Assuming '1' means the value doesn't exist).
-        return $this->handle->getStringValue(
-                $this->hive,
-                $this->name,
-                $name,
-                $value
-            ) !== 1;
     }
 }

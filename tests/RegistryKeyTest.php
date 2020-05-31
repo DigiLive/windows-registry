@@ -215,7 +215,7 @@ class RegistryKeyTest extends TestCase
         self::$FollowingTestStdRegProvResult = 1;
 
         $key = $this->getSomeKey();
-        $this->assertNull($key->deleteSubKey('newKey'));
+        $this->assertNull($key->deleteSubKey('someKey'));
     }
 
     /**
@@ -229,7 +229,20 @@ class RegistryKeyTest extends TestCase
         self::$FollowingTestStdRegProvResult = 0;
         $key                                 = $this->getSomeKey();
         $this->expectException(OperationFailedException::class);
-        $key->deleteSubKey('newKey');
+        $key->deleteSubKey('someKey');
+    }
+
+    /**
+     * Test deleting a subKey including contents.
+     *
+     * Note: Since the registry handle is mocked, the iterators of the subKey contain no elements. Therefor the content
+     *       of the outer foreach loop of RegistryKey::deleteSubKeyRecursive isn't covered.
+     * @noinspection PhpVoidFunctionResultUsedInspection
+     */
+    public function testDeleteSubKeyRecursive()
+    {
+        $key = $this->getSomeKey();
+        $this->assertNull($key->deleteSubKeyRecursive('someKey'));
     }
 
     /**
@@ -394,7 +407,7 @@ class RegistryKeyTest extends TestCase
     public function testDeleteValueTrowsException()
     {
         self::$FollowingTestStdRegProvResult = 0;
-        $this->expectException(OperationFailedException::class);
+        $this->expectException(ValueNotFoundException::class);
         $key = $this->getSomeKey();
 
         $this->assertNull($key->deleteValue('someKey'));
