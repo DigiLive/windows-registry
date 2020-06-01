@@ -23,7 +23,7 @@ below before using.
 Use [Composer](http://getcomposer.org):
 
 ```sh
-> composer require coderstephen/windows-registry:~0.9
+> composer require digilive/windows-registry:~0.10
 ```
 
 ## Documentation
