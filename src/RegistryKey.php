@@ -149,10 +149,14 @@ final class RegistryKey
         // Delete subKeys.
         $currentKey = $this->getSubKey($name);
 
-        foreach ($currentKey->getSubKeyIterator() as $subKeyName => $subKey) {
+        foreach ($currentKey->getSubKeyIterator() as $subKey) {
             // Delete subKey values.
-            foreach ($subKey->getValueIterator() as $valueName => $valueValue) {
-                $subKey->deleteValue($valueName);
+            // Iterate over all values in the key.
+            $valueIterator = $subKey->getValueIterator();
+            $valueIterator->rewind();
+            while ($valueIterator->valid()) {
+                $subKey->deleteValue($valueIterator->key());
+                $valueIterator->next();
             }
 
             // Delete nested subKeys.
