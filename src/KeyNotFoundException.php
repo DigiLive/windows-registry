@@ -17,6 +17,8 @@
 
 namespace Windows\Registry;
 
-class KeyNotFoundException extends \RuntimeException implements Exception
+use RuntimeException;
+
+class KeyNotFoundException extends RuntimeException implements Exception
 {
 }

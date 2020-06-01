@@ -1,29 +1,38 @@
 <?php
-/*
+/**
  * Copyright 2014 Stephen Coakley <me@stephencoakley.com>
+ * Copyright 2020 DigiLive <info@digilive.nl>
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy
- * of the License at
+ * This file has been modified by DigiLive.
+ * Changes can be tracked on our GitHub website at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     https://github.com/DigiLive/windows-registry
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 namespace Windows\Registry;
 
+use Iterator;
+use VARIANT;
+
 /**
  * Iterates over values in a registry key.
  */
-class RegistryValueIterator implements \Iterator
+class RegistryValueIterator implements Iterator
 {
     /**
-     * @var RegistryHandle An open registry handle.
+     * @var RegistryHandle The WMI registry provider handle to use.
      */
     protected $handle;
 
@@ -43,12 +52,12 @@ class RegistryValueIterator implements \Iterator
     protected $count = 0;
 
     /**
-     * @var \VARIANT A (hopefully) enumerable variant containing the value names.
+     * @var VARIANT A (hopefully) enumerable variant containing the value names.
      */
     protected $valueNames;
 
     /**
-     * @var \VARIANT A (hopefully) enumerable variant containing the data types of values.
+     * @var VARIANT A (hopefully) enumerable variant containing the data types of values.
      */
     protected $valueTypes;
 
@@ -60,24 +69,24 @@ class RegistryValueIterator implements \Iterator
      */
     public function __construct(RegistryHandle $handle, RegistryKey $key)
     {
-        $this->handle = $handle;
+        $this->handle      = $handle;
         $this->registryKey = $key;
     }
 
     /**
-     * Rewinds the iterator to the first value.
+     * Rewind the iterator to the first value.
      */
     public function rewind()
     {
-        // reset pointer and count
+        // Reset pointer and count.
         $this->pointer = 0;
-        $this->count = 0;
+        $this->count   = 0;
 
-        // create empty variants to store out params
-        $this->valueNames = new \VARIANT();
-        $this->valueTypes = new \VARIANT();
+        // Create empty variants to store values and their type.
+        $this->valueNames = new VARIANT();
+        $this->valueTypes = new VARIANT();
 
-        // attempt to enumerate values
+        // Attempt to enumerate values.
         $errorCode = $this->handle->enumValues(
             $this->registryKey->getHive(),
             $this->registryKey->getQualifiedName(),
@@ -85,30 +94,30 @@ class RegistryValueIterator implements \Iterator
             $this->valueTypes
         );
 
-        // make sure the enum isn't empty
+        // Make sure the enum isn't empty.
         if ($errorCode === 0
             && (variant_get_type($this->valueNames) & VT_ARRAY)
             && (variant_get_type($this->valueTypes) & VT_ARRAY)) {
-            // store the number of values
-            $this->count = count($this->valueNames);
+            // Store the amount of values.
+            /** @noinspection PhpParamsInspection */
+            $this->count = count($this->valueNames); // VARIANT is countable.
         }
     }
 
     /**
-     * Checks if the current iteration position is valid.
+     * Check if the current iteration position is within range.
      *
-     * @return bool
+     * @return bool True if the position is within range, False otherwise.
      */
-    public function valid()
+    public function valid(): bool
     {
         return $this->pointer < $this->count;
     }
 
     /**
-     * Gets the data value of the registry value at the current iteration
-     * position.
+     * Get the value at the current iteration position.
      *
-     * @return mixed
+     * @return mixed The value at the current iterator position.
      */
     public function current()
     {
@@ -116,24 +125,31 @@ class RegistryValueIterator implements \Iterator
     }
 
     /**
-     * Gets the value type of the registry value at the current iteration
-     * position.
+     * Get the name of the registry value at the current iteration position.
      *
-     * @return RegistryValueType
+     * @return string Name of the value at the current iterator position.
      */
-    public function currentType()
+    public function key(): string
     {
-        return (int)$this->valueTypes[$this->pointer];
+        return (string)$this->valueNames[$this->pointer];
     }
 
     /**
-     * Gets the name of the registry value at the current iteration position.
+     * Gets the value type of the registry value at the current iteration position.
      *
-     * @return string
+     * The following data value types are defined in WinNT.h:
+     * REG_SZ (1)
+     * REG_EXPAND_SZ (2)
+     * REG_BINARY (3)
+     * REG_DWORD (4)
+     * REG_MULTI_SZ (7)
+     * REG_QWORD (11)
+     *
+     * @return int Type of the registry value at the current iterator position.
      */
-    public function key()
+    public function currentType(): int
     {
-        return (string)$this->valueNames[$this->pointer];
+        return (int)$this->valueTypes[$this->pointer];
     }
 
     /**

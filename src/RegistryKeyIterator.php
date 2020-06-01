@@ -1,29 +1,38 @@
 <?php
-/*
+/**
  * Copyright 2014 Stephen Coakley <me@stephencoakley.com>
+ * Copyright 2020 DigiLive <info@digilive.nl>
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy
- * of the License at
+ * This file has been modified by DigiLive.
+ * Changes can be tracked on our GitHub website at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     https://github.com/DigiLive/windows-registry
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 namespace Windows\Registry;
 
+use RecursiveIterator;
+use VARIANT;
+
 /**
- * Iterates over the subkeys of a registry key.
+ * Iterates over the subKeys of a registry key.
  */
-class RegistryKeyIterator implements \RecursiveIterator
+class RegistryKeyIterator implements RecursiveIterator
 {
     /**
-     * @var RegistryHandle An open registry handle.
+     * @var RegistryHandle The WMI registry provider handle to use.
      */
     protected $handle;
 
@@ -38,102 +47,107 @@ class RegistryKeyIterator implements \RecursiveIterator
     protected $pointer = 0;
 
     /**
-     * @var int The number of subkeys we are iterating over.
+     * @var int The number of subKeys we are iterating over.
      */
     protected $count = 0;
 
     /**
-     * @var \VARIANT A (hopefully) enumerable variant containing the names of subkeys.
+     * @var VARIANT A (hopefully) enumerable variant containing the names of subKeys.
      */
     protected $subKeyNames;
 
     /**
-     * Creates a new registry key iterator.
+     * Create a new registry key iterator.
      *
      * @param RegistryHandle $handle The WMI registry provider handle to use.
-     * @param RegistryKey    $key    The registry key whose subkeys to iterate over.
+     * @param RegistryKey    $key    The registry key whose subKeys to iterate over.
      */
     public function __construct(RegistryHandle $handle, RegistryKey $key)
     {
-        $this->handle = $handle;
+        $this->handle      = $handle;
         $this->registryKey = $key;
     }
 
     /**
-     * Returns if a subkey iterator can be created for the current key.
+     * Check for a key having subKeys.
      *
-     * @return bool
+     * If a subKey iterator can be created for the current key the method returns true.
+     *
+     * @return bool True when a key has subKeys, False otherwise.
      */
-    public function hasChildren()
+    public function hasChildren(): bool
     {
         $iterator = $this->getChildren();
         $iterator->rewind();
+
         return $iterator->valid();
     }
 
     /**
-     * Gets an iterator for subkeys of the current registry key.
+     * Get an subKey iterator of the current registry key.
      *
-     * @return RegistryKeyIterator
+     * @return RegistryKeyIterator SubKey Iterator.
      */
-    public function getChildren()
+    public function getChildren(): RegistryKeyIterator
     {
         return new static($this->handle, $this->current());
     }
 
     /**
-     * Rewinds the iterator to the first key.
-     */
-    public function rewind()
-    {
-        // reset pointer and count
-        $this->pointer = 0;
-        $this->count = 0;
-
-        // create an empty variant to store subkey names
-        $this->subKeyNames = new \VARIANT();
-
-        // attempt to enumerate subkeys
-        $errorCode = $this->handle->enumKey(
-            $this->registryKey->getHive(),
-            $this->registryKey->getQualifiedName(),
-            $this->subKeyNames);
-
-        // make sure the enum isn't empty
-        if ($errorCode === 0 && (variant_get_type($this->subKeyNames) & VT_ARRAY)) {
-            // store the number of subkeys
-            $this->count = count($this->subKeyNames);
-        }
-    }
-
-    /**
-     * Checks if the current iteration position is valid.
+     * Get the registry key at the current iteration position.
      *
-     * @return bool
+     * @return RegistryKey Registry key at current position.
      */
-    public function valid()
-    {
-        return $this->pointer < $this->count;
-    }
-
-    /**
-     * Gets the registry key at the current iteration position.
-     *
-     * @return RegistryKey
-     */
-    public function current()
+    public function current(): RegistryKey
     {
         return $this->registryKey->getSubKey($this->key());
     }
 
     /**
-     * Gets the name of the registry key at the current iteration position.
+     * Get the name of the registry key at the current iteration position.
      *
-     * @return string
+     * @return string Name of the registry key at the current position.
      */
-    public function key()
+    public function key(): string
     {
         return (string)$this->subKeyNames[$this->pointer];
+    }
+
+    /**
+     * Rewind the iterator to the first registry key.
+     */
+    public function rewind()
+    {
+        // Reset pointer and count.
+        $this->pointer = 0;
+        $this->count   = 0;
+
+        // Create an empty variant to store subKey names.
+        $this->subKeyNames = new VARIANT();
+
+        // Enumerate subKeys.
+        $errorCode = $this->handle->enumKey(
+            $this->registryKey->getHive(),
+            $this->registryKey->getQualifiedName(),
+            $this->subKeyNames
+        );
+
+        // Make sure the enum isn't empty.
+        if ($errorCode === 0 && (variant_get_type($this->subKeyNames) & VT_ARRAY)) {
+            // Store the amount of subKeys.
+            /** @noinspection PhpParamsInspection */
+            $this->count = count($this->subKeyNames); // VARIANT is countable.
+        }
+    }
+
+    /**
+     * Check if the current iteration position is within range.
+     *
+     * @return bool True if the position is within range, False otherwise.
+     */
+    public function valid(): bool
+    {
+        return $this->pointer < $this->count;
     }
 
     /**

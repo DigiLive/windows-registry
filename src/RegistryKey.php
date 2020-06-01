@@ -1,41 +1,51 @@
 <?php
-/*
+/**
  * Copyright 2014 Stephen Coakley <me@stephencoakley.com>
+ * Copyright 2020 DigiLive <info@digilive.nl>
  *
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not
- * use this file except in compliance with the License. You may obtain a copy
- * of the License at
+ * This file has been modified by DigiLive.
+ * Changes can be tracked on our GitHub website at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     https://github.com/DigiLive/windows-registry
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 namespace Windows\Registry;
+
+use VARIANT;
 
 /**
  * Represents a single key in the Windows registry.
  */
 final class RegistryKey
 {
-    const TYPE_SZ = 1;
-    const TYPE_EXPAND_SZ = 2;
-    const TYPE_BINARY = 3;
-    const TYPE_DWORD = 4;
-    const TYPE_MULTI_SZ = 7;
-    const TYPE_QWORD = 11;
+    public const TYPE_SZ        = 1;
+    public const TYPE_EXPAND_SZ = 2;
+    public const TYPE_BINARY    = 3;
+    public const TYPE_DWORD     = 4;
+    public const TYPE_MULTI_SZ  = 7;
+    public const TYPE_QWORD     = 11;
 
     /**
-     * @var RegistryHandle An open registry handle.
+     * @var RegistryHandle The WMI registry provider handle to use.
      */
     protected $handle;
 
     /**
      * @var int The registry hive the key is located in.
+     *          Note: Although a hive is represented as a hex number, which is an int, php will cast this value into a
+     *          float or double because the value causes an overflow.
      */
     protected $hive;
 
@@ -45,76 +55,122 @@ final class RegistryKey
     protected $name;
 
     /**
-     * Creates a new key value object.
+     * Create a new key value object.
      *
-     * @param RegistryHandle $handle An open registry handle.
-     * @param int            $hive   The registry hive the key is located in.
+     * Note: Although a hive is represented as a hex number, which is an int, php will cast this value into a float or
+     * double because the value causes an overflow.
+     *
+     * @param RegistryHandle $handle The WMI registry provider handle to use.
+     * @param float          $hive   The registry hive the key is located in.
      * @param string         $name   The fully-qualified name of the key.
      */
-    public function __construct(RegistryHandle $handle, $hive, $name)
+    public function __construct(RegistryHandle $handle, float $hive, string $name)
     {
         $this->handle = $handle;
-        $this->hive = $hive;
-        $this->name = $name;
+        $this->hive   = $hive;
+        $this->name   = $name;
     }
 
     /**
-     * Gets the local (unqualified) name of the key.
+     * Get the registry hive the key is located in.
      *
-     * @return string
-     */
-    public function getName()
-    {
-        if (strpos($this->name, '\\') !== false) {
-            return substr($this->name, strpos($this->name, '\\') + 1);
-        }
-        return $this->name;
-    }
-
-    /**
-     * Gets the fully-qualified name of the key.
+     * Note: Although a hive is represented as a hex number, which is an int, php will cast this value into a float or
+     * double because the value causes an overflow.
      *
-     * @return string
+     * @return float Hive of the key.
      */
-    public function getQualifiedName()
-    {
-        return $this->name;
-    }
-
-    /**
-     * Gets the registry hive the key is located in.
-     *
-     * @return int
-     */
-    public function getHive()
+    public function getHive(): float
     {
         return $this->hive;
     }
 
     /**
-     * Gets the underlying handle object used to access the registry.
+     * Get the underlying handle object used to access the registry.
      *
-     * @return RegistryHandle
+     * @return RegistryHandle The WMI registry provider handle to use..
      */
-    public function getHandle()
+    public function getHandle(): RegistryHandle
     {
         return $this->handle;
     }
 
     /**
-     * Gets a registry subkey with the specified name.
+     * Get the parent registry key of the current subKey, or null if the key is a root key.
      *
-     * @param string $name The name or path of the subkey.
-     *
-     * @return RegistryKey
+     * @return RegistryKey|null Parent of the key or null.
      */
-    public function getSubKey($name)
+    public function getParentKey()
     {
-        $subKeyName = empty($this->name) ? $name : $this->name.'\\'.$name;
+        $parentKeyName = dirname($this->name);
+        if ($parentKeyName !== '.') {
+            return new static($this->handle, $this->hive, $parentKeyName);
+        }
 
-        // call EnumKeys on the subkey to check if it exists
-        $sNames = new \VARIANT();
-        if ($this->handle->enumKey($this->hive, $subKeyName, $sNames) == 0) {
+        // The parent key is a hive.
+        return new static($this->handle, $this->hive, '');
+    }
+
+    /**
+     * Create a new registry subKey.
+     *
+     * @param string $name The name or path of the key relative to the current key.
+     *
+     * @return RegistryKey The new key.
+     * @throws OperationFailedException When creating the key failed.
+     */
+    public function createSubKey(string $name): RegistryKey
+    {
+        $subKeyName = empty($this->name) ? $name : $this->name . '\\' . $name;
+
+        if ($this->handle->createKey($this->hive, $subKeyName) !== 0) {
+            throw new OperationFailedException("Failed to create key \"{$subKeyName}\".");
+        }
+
+        return new static($this->handle, $this->hive, $name);
+    }
+
+    /**
+     * Delete a subKey including contents.
+     *
+     * @param string $name The name or path of the key relative to the current key.
+     */
+    public function deleteSubKeyRecursive(string $name)
+    {
+        // Delete subKeys.
+        $currentKey = $this->getSubKey($name);
+
+        foreach ($currentKey->getSubKeyIterator() as $subKey) {
+            // Delete subKey values.
+            // Iterate over all values in the key.
+            $valueIterator = $subKey->getValueIterator();
+            $valueIterator->rewind();
+            while ($valueIterator->valid()) {
+                $subKey->deleteValue($valueIterator->key());
+                $valueIterator->next();
+            }
+
+            // Delete nested subKeys.
+            $this->deleteSubKeyRecursive($subKey->getName());
+        }
+
+        $this->deleteSubKey($name);
+    }
+
+    /**
+     * Get a registry subKey with the specified name.
+     *
+     * @param string $name The name or path of the subKey.
+     *
+     * @return RegistryKey The requested key.
+     * @throws KeyNotFoundException When the key doesn't exist.
+     */
+    public function getSubKey(string $name): RegistryKey
+    {
+        $subKeyName = empty($this->name) ? $name : $this->name . '\\' . $name;
+
+        // Call EnumKeys on the subKey to check if it exists.
+        $sNames = new VARIANT();
+        if ($this->handle->enumKey($this->hive, $subKeyName, $sNames) === 0) {
             return new static($this->handle, $this->hive, $subKeyName);
         }
 
@@ -122,47 +178,94 @@ final class RegistryKey
     }
 
     /**
-     * Gets the parent registry key of the current subkey, or null if the key
-     * is a root key.
+     * Get an iterator for iterating over subKeys of this key.
      *
-     * @return RegistryKey|null
+     * @return RegistryKeyIterator subKey Iterator.
      */
-    public function getParentKey()
+    public function getSubKeyIterator(): RegistryKeyIterator
     {
-        // check if we have a parent key
-        if (dirname($this->name) !== '.') {
-            return new static($this->handle, $this->hive, dirname($this->name));
-        }
-
-        return;
+        return new RegistryKeyIterator($this->handle, $this);
     }
 
     /**
-     * Creates a new registry subkey.
+     * Get an iterator for iterating over key values.
      *
-     * @param string $name The name or path of the key relative to the current key.
-     *
-     * @return RegistryKey
+     * @return RegistryValueIterator Value Iterator.
      */
-    public function createSubKey($name)
+    public function getValueIterator(): RegistryValueIterator
     {
-        $subKeyName = empty($this->name) ? $name : $this->name.'\\'.$name;
-
-        if ($this->handle->createKey($this->hive, $subKeyName) !== 0) {
-            throw new OperationFailedException("Failed to create key \"{$subKeyName}\".");
-        }
-
-        return new static($this->handle, $hive, $name);
+        return new RegistryValueIterator($this->handle, $this);
     }
 
     /**
-     * Deletes a registry subkey.
+     * Delete a named value from the key.
      *
-     * @param string $name The name or path of the subkey to delete.
+     * @param string $name The name of the named value to delete.
+     *
+     * @throws OperationFailedException When deleting the value failed.
+     * @throws ValueNotFoundException When the value doesn't exist.
      */
-    public function deleteSubKey($name)
+    public function deleteValue(string $name)
     {
-        $subKeyName = empty($this->name) ? $name : $this->name.'\\'.$name;
+        // Try to delete the value
+        $errorCode = $this->handle->deleteValue($this->hive, $this->name, $name);
+
+        if ($errorCode !== 0) {
+            // Operation failed.
+            if (!$this->valueExists($name)) {
+                // Operation failed because value doesn't exist (anymore).
+                throw new ValueNotFoundException("The value '{$name}' does not exist.");
+            }
+
+            // Operation failed because of other reason.
+            throw new OperationFailedException("Failed to delete value '{$name}' from key '$this->name}'.");
+        }
+    }
+
+    /**
+     * Check if a named value exists.
+     *
+     * @param string $name The name of the value to check.
+     *
+     * @return bool True if the value exists, otherwise false.
+     */
+    public function valueExists(string $name): bool
+    {
+        $value = null;
+
+        // Validate the return value "1" (Assuming '1' means the value doesn't exist).
+        return $this->handle->getStringValue(
+                $this->hive,
+                $this->name,
+                $name,
+                $value
+            ) !== 1;
+    }
+
+    /**
+     * Get the local (unqualified) name of the key.
+     *
+     * @return string Name of the key.
+     */
+    public function getName(): string
+    {
+        if (strpos($this->name, '\\') !== false) {
+            return substr($this->name, strpos($this->name, '\\') + 1);
+        }
+
+        return $this->name;
+    }
+
+    /**
+     * Delete a registry subKey.
+     *
+     * @param string $name The name or path of the subKey to delete.
+     *
+     * @throws OperationFailedException When deleting the subKey failed.
+     */
+    public function deleteSubKey(string $name)
+    {
+        $subKeyName = empty($this->name) ? $name : $this->name . '\\' . $name;
 
         if ($this->handle->deleteKey($this->hive, $subKeyName) !== 0) {
             throw new OperationFailedException("Failed to delete key '{$subKeyName}'.");
@@ -170,82 +273,126 @@ final class RegistryKey
     }
 
     /**
-     * Gets an iterator for iterating over subkeys of this key.
+     * Get the content data of a subKey.
      *
-     * @return RegistryKeyIterator
+     * Note: This method doesn't include actual keys and values in the return value, but information about those like
+     *       name, type and value.
+     *
+     * @param string $name          The name or path of the subKey.
+     * @param bool   $includeValues True to include values.
+     *
+     * @return array subKey Data.
      */
-    public function getSubKeyIterator()
+    public function getSubKeyRecursive(string $name, bool $includeValues = false): array
     {
-        return new RegistryKeyIterator($this->handle, $this);
+        $currentKey  = $this->getSubKey($name);
+        $returnValue = [];
+
+        // Define the rootKey properties.
+        $returnValue['type'] = 'key';
+        $returnValue['name'] = $currentKey->getName();
+        $returnValue['keys'] = [];
+
+        // Get the rootKey's subKeys.
+        foreach ($currentKey->getSubKeyIterator() as $subKey) {
+            // Get nested sub keys and values.
+            $returnValue['keys'][] = $this->getSubKeyRecursive($subKey->getQualifiedName(), $includeValues);
+        }
+
+        if ($includeValues) {
+            // Get the rootKey Values.
+            $returnValue['values'] = [];
+            $i                     = 0;
+            foreach ($currentKey->getValueIterator() as $valueName => $valueValue) {
+                $returnValue['values'][$i]['type']    = $currentKey->getValueType($valueName);
+                $returnValue['values'][$i]['name']    = $valueName;
+                $returnValue['values'][$i++]['value'] = $valueValue;
+            }
+        }
+
+        return $returnValue;
     }
 
     /**
-     * Checks if a named value exists with the given name.
+     * Get the fully-qualified name of the key.
      *
-     * @param string $name The name of the value to check.
-     *
-     * @return bool True if the value exists, otherwise false.
+     * @return string Name of the key.
      */
-    public function valueExists($name)
+    public function getQualifiedName(): string
     {
-        // look for the suspicious "1" error code (which I believe to mean does
-        // not exist)
-        return $this->handle->getStringValue(
-            $this->hive,
-            $this->name,
-            $name,
-            null
-        ) !== 1;
+        return $this->name;
     }
 
     /**
-     * Gets the value data of a named key value.
+     * Get the data type of a given value.
+     *
+     * Note: This is a relatively expensive operation. Especially for keys with lots of values.
+     *
+     * @param string $name The name of the value.
+     *
+     * @return int The type of the value.
+     * @throws ValueNotFoundException When the value doesn't exist.
+     */
+    public function getValueType(string $name): int
+    {
+        // Iterate over all values in the key.
+        $iterator = $this->getValueIterator();
+        $iterator->rewind();
+        while ($iterator->valid()) {
+            if ($iterator->key() === $name) {
+                return $iterator->currentType();
+            }
+            $iterator->next();
+        }
+
+        throw new ValueNotFoundException("The value '{$name}' does not exist.");
+    }
+
+    /**
+     * Get the value data of a named key value.
      *
      * @param string $name The name of the value.
      * @param int    $type The value type of the value.
      *
      * @return mixed The value data of the value.
      */
-    public function getValue($name, $type = null)
+    public function getValue(string $name, int $type = null)
     {
-        // create a variant to store the key value data
-        $valueData = new \VARIANT();
+        // Create a variant to store the key value data.
+        $valueData = new VARIANT();
 
-        // auto detect type
-        // not recommended - see getValueType() for details
+        // Auto detect type. Not recommended - see getValueType() for details.
         if (!$type) {
             $type = $this->getValueType($name);
         }
 
         $normalizedValue = null;
-        $errorCode = 0;
+        $errorCode       = 0;
 
-        // get the value data type
+        // Get the value's data type.
         switch ($type) {
-            // string type
+            // String Type.
             case self::TYPE_SZ:
-                // get the data of the value
-                $errorCode = $this->handle->getStringValue($this->hive, $this->name, $name, $valueData);
+                $errorCode       = $this->handle->getStringValue($this->hive, $this->name, $name, $valueData);
                 $normalizedValue = (string)$valueData;
                 break;
 
-            // expanded string type
+            // Expanded String Type.
             case self::TYPE_EXPAND_SZ:
-                // get the data of the value
-                $errorCode = $this->handle->getExpandedStringValue($this->hive, $this->name, $name, $valueData);
+                $errorCode       = $this->handle->getExpandedStringValue($this->hive, $this->name, $name, $valueData);
                 $normalizedValue = (string)$valueData;
                 break;
 
-            // binary type
+            // Binary Type.
             case self::TYPE_BINARY:
-                // get the data of the value
-                $errorCode = $this->handle->getBinaryValue($this->hive, $this->name, $name, $valueData);
+                $errorCode    = $this->handle->getBinaryValue($this->hive, $this->name, $name, $valueData);
                 $binaryString = '';
 
-                // enumerate over each byte
-                if (variant_get_type($valueData) & VT_ARRAY) {
+                // Enumerate over each byte.
+                /** @noinspection PhpParamsInspection */
+                if ((variant_get_type($valueData) & VT_ARRAY) && count($valueData)) {
                     foreach ($valueData as $byte) {
-                        // add the byte code to the byte string
+                        // Add the byte code to the byte string.
                         $binaryString .= chr((int)$byte);
                     }
                 }
@@ -253,28 +400,26 @@ final class RegistryKey
                 $normalizedValue = $binaryString;
                 break;
 
-            // int type
+            // Integer Type.
             case self::TYPE_DWORD:
-                // get the data of the value
-                $errorCode = $this->handle->getDWORDValue($this->hive, $this->name, $name, $valueData);
+                $errorCode       = $this->handle->getDWORDValue($this->hive, $this->name, $name, $valueData);
                 $normalizedValue = (int)$valueData;
                 break;
 
-            // big-int type
+            // Big-Integer Type.
             case self::TYPE_QWORD:
-                // get the data of the value
-                $errorCode = $this->handle->getQWORDValue($this->hive, $this->name, $name, $valueData);
+                $errorCode       = $this->handle->getQWORDValue($this->hive, $this->name, $name, $valueData);
                 $normalizedValue = (string)$valueData;
                 break;
 
-            // string array type
+            // String Array Type.
             case self::TYPE_MULTI_SZ:
-                // get the data of the value
                 $errorCode = $this->handle->getMultiStringValue($this->hive, $this->name, $name, $valueData);
 
-                $stringArray = array();
-                // enumerate over each sub string
-                if (variant_get_type($valueData) & VT_ARRAY) {
+                $stringArray = [];
+                // Enumerate over each sub string.
+                /** @noinspection PhpParamsInspection */
+                if ((variant_get_type($valueData) & VT_ARRAY) && count($valueData)) {
                     foreach ($valueData as $subValueData) {
                         $stringArray[] = (string)$subValueData;
                     }
@@ -284,8 +429,8 @@ final class RegistryKey
                 break;
         }
 
-        // check for successful read
         if ($errorCode !== 0) {
+            // Reading the value from the registry failed.
             throw new OperationFailedException("Failed to read value \"{$name}\".");
         }
 
@@ -293,18 +438,19 @@ final class RegistryKey
     }
 
     /**
-     * Sets the value data of a named key value.
+     * Set the value data of a named key value.
      *
      * @param string $name  The name of the value.
      * @param mixed  $value The value data of the value.
      * @param int    $type  The value type of the value.
+     *
+     * @throws InvalidTypeException     When the defined type isn't a valid registry type.
+     *                                  When setting a non-array type as a MultiString.
+     * @throws OperationFailedException When setting the value failed.
      */
-    public function setValue($name, $value, $type)
+    public function setValue(string $name, $value, int $type)
     {
-        // store error code to check for success later
-        $errorCode = 0;
-
-        // set differently depending on type
+        // Set differently depending on type.
         switch ($type) {
             case self::TYPE_SZ:
                 $errorCode = $this->handle->setStringValue($this->hive, $this->name, $name, (string)$value);
@@ -318,7 +464,7 @@ final class RegistryKey
                 if (is_string($value)) {
                     $value = array_map('ord', str_split($value));
                 }
-                $errorCode = $this->handle->setBinaryValue($this->defKey, $this->name, $name, $value);
+                $errorCode = $this->handle->setBinaryValue($this->hive, $this->name, $name, $value);
                 break;
 
             case self::TYPE_DWORD:
@@ -327,72 +473,18 @@ final class RegistryKey
 
             case self::TYPE_MULTI_SZ:
                 if (!is_array($value)) {
-                    throw new Exception('Cannot set non-array type as MultiString.');
+                    throw new InvalidTypeException('Cannot set non-array type as MultiString.');
                 }
-                $errorCode = $this->handle->setMultiStringValue($this->defKey, $this->name, $name, $value);
+                $errorCode = $this->handle->setMultiStringValue($this->hive, $this->name, $name, $value);
                 break;
 
             default:
                 throw new InvalidTypeException("The value {$type} is not a valid registry type.");
         }
 
-        // check for successful write
         if ($errorCode !== 0) {
+            // Setting the value failed.
             throw new OperationFailedException("Failed to write value \"{$name}\".");
         }
-    }
-
-    /**
-     * Deletes a named value from the key.
-     *
-     * @param string $name The name of the named value to delete.
-     */
-    public function deleteValue($name)
-    {
-        // attempt to delete the value
-        $errorCode = $this->handle->deleteValue($this->hive, $this->name, $name);
-
-        if ($errorCode !== 0) {
-            if (!$this->valueExists($name)) {
-                throw new ValueNotFoundException("The value '{$name}' does not exist.");
-            }
-
-            throw new OperationFailedException("Failed to delete value '{$name}' from key '$this->name}'.");
-        }
-    }
-
-    /**
-     * Gets an iterator for iterating over key values.
-     *
-     * @return RegistryValueIterator
-     */
-    public function getValueIterator()
-    {
-        return new RegistryValueIterator($this->handle, $this);
-    }
-
-    /**
-     * Gets the data type of a given value.
-     *
-     * Note that this is a relatively expensive operation, especially for keys
-     * with lots of values.
-     *
-     * @param string $name The name of the value.
-     *
-     * @return int The type of the value.
-     */
-    public function getValueType($name)
-    {
-        // iterate over all values in the key
-        $iterator = $this->getValueIterator();
-        foreach ($iterator as $key => $value) {
-            // is this the value we are looking for?
-            if ($key === $name) {
-                // value is now cached through the iterator
-                return $iterator->currentType();
-            }
-        }
-
-        throw new ValueNotFoundException("The value '{$name}' does not exist.");
     }
 }
