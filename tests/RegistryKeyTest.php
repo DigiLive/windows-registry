@@ -152,10 +152,33 @@ class RegistryKeyTest extends TestCase
      */
     public function testGetSubKey()
     {
-        self::$FollowingTestStdRegProvResult = 1;
-        $key                                 = $this->getSomeKey();
+        $key = $this->getSomeKey();
 
         $this->assertInstanceOf(RegistryKey::class, $key->getSubKey('Software'));
+    }
+
+    /**
+     * Test getting a subKey including subKeys (and values).
+     *
+     * Note: Since the registry handle is mocked, the iterators contain no elements. Therefor the content of foreach
+     *       loops of RegistryKey::getSubKeyRecursive() isn't covered.
+     * Note: This test changes the returnValue of mocked method __call of the registry handle for the following
+     *       tests!
+     */
+    public function testGetSubKeyRecursive()
+    {
+        self::$FollowingTestStdRegProvResult = 1;
+        $key                                 = $this->getSomeKey();
+        $expected                            = [
+            'type' => 'key',
+            'name' => 'someKey',
+            'keys' => [],
+        ];
+
+        $this->assertEquals($expected, $key->getSubKeyRecursive('someKey'));
+
+        $expected['values'] = [];
+        $this->assertEquals($expected, $key->getSubKeyRecursive('someKey', true));
     }
 
     /**
@@ -236,7 +259,7 @@ class RegistryKeyTest extends TestCase
      * Test deleting a subKey including contents.
      *
      * Note: Since the registry handle is mocked, the iterators of the subKey contain no elements. Therefor the content
-     *       of the outer foreach loop of RegistryKey::deleteSubKeyRecursive isn't covered.
+     *       of the outer foreach loop of RegistryKey::deleteSubKeyRecursive() isn't covered.
      * @noinspection PhpVoidFunctionResultUsedInspection
      */
     public function testDeleteSubKeyRecursive()
@@ -271,7 +294,9 @@ class RegistryKeyTest extends TestCase
      * Test getting values of a key.
      *
      * Getting values of all types which are currently supported by the registry handle is tested.
-     * This test doesn't cover 100% of the getValue method because we can't get variant types when the handle is mocked.
+     *
+     * Note: This test doesn't cover 100% of the getValue method because we can't get variant types when the handle is
+     *       mocked.
      */
     public function testGetValue()
     {

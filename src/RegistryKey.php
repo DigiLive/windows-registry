@@ -72,16 +72,6 @@ final class RegistryKey
     }
 
     /**
-     * Get the fully-qualified name of the key.
-     *
-     * @return string Name of the key.
-     */
-    public function getQualifiedName(): string
-    {
-        return $this->name;
-    }
-
-    /**
      * Get the registry hive the key is located in.
      *
      * Note: Although a hive is represented as a hex number, which is an int, php will cast this value into a float or
@@ -283,6 +273,82 @@ final class RegistryKey
     }
 
     /**
+     * Get the content data of a subKey.
+     *
+     * Note: This method doesn't include actual keys and values in the return value, but information about those like
+     *       name, type and value.
+     *
+     * @param string $name          The name or path of the subKey.
+     * @param bool   $includeValues True to include values.
+     *
+     * @return array subKey Data.
+     */
+    public function getSubKeyRecursive(string $name, bool $includeValues = false): array
+    {
+        $currentKey  = $this->getSubKey($name);
+        $returnValue = [];
+
+        // Define the rootKey properties.
+        $returnValue['type'] = 'key';
+        $returnValue['name'] = $currentKey->getName();
+        $returnValue['keys'] = [];
+
+        // Get the rootKey's subKeys.
+        foreach ($currentKey->getSubKeyIterator() as $subKey) {
+            // Get nested sub keys and values.
+            $returnValue['keys'][] = $this->getSubKeyRecursive($subKey->getQualifiedName(), $includeValues);
+        }
+
+        if ($includeValues) {
+            // Get the rootKey Values.
+            $returnValue['values'] = [];
+            $i                     = 0;
+            foreach ($currentKey->getValueIterator() as $valueName => $valueValue) {
+                $returnValue['values'][$i]['type']    = $currentKey->getValueType($valueName);
+                $returnValue['values'][$i]['name']    = $valueName;
+                $returnValue['values'][$i++]['value'] = $valueValue;
+            }
+        }
+
+        return $returnValue;
+    }
+
+    /**
+     * Get the fully-qualified name of the key.
+     *
+     * @return string Name of the key.
+     */
+    public function getQualifiedName(): string
+    {
+        return $this->name;
+    }
+
+    /**
+     * Get the data type of a given value.
+     *
+     * Note: This is a relatively expensive operation. Especially for keys with lots of values.
+     *
+     * @param string $name The name of the value.
+     *
+     * @return int The type of the value.
+     * @throws ValueNotFoundException When the value doesn't exist.
+     */
+    public function getValueType(string $name): int
+    {
+        // Iterate over all values in the key.
+        $iterator = $this->getValueIterator();
+        $iterator->rewind();
+        while ($iterator->valid()) {
+            if ($iterator->key() === $name) {
+                return $iterator->currentType();
+            }
+            $iterator->next();
+        }
+
+        throw new ValueNotFoundException("The value '{$name}' does not exist.");
+    }
+
+    /**
      * Get the value data of a named key value.
      *
      * @param string $name The name of the value.
@@ -367,31 +433,6 @@ final class RegistryKey
         }
 
         return $normalizedValue;
-    }
-
-    /**
-     * Get the data type of a given value.
-     *
-     * Note: This is a relatively expensive operation. Especially for keys with lots of values.
-     *
-     * @param string $name The name of the value.
-     *
-     * @return int The type of the value.
-     * @throws ValueNotFoundException When the value doesn't exist.
-     */
-    public function getValueType(string $name): int
-    {
-        // Iterate over all values in the key.
-        $iterator = $this->getValueIterator();
-        $iterator->rewind();
-        while ($iterator->valid()) {
-            if ($iterator->key() === $name) {
-                return $iterator->currentType();
-            }
-            $iterator->next();
-        }
-
-        throw new ValueNotFoundException("The value '{$name}' does not exist.");
     }
 
     /**
