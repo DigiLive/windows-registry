@@ -390,7 +390,7 @@ final class RegistryKey
 
                 // Enumerate over each byte.
                 /** @noinspection PhpParamsInspection */
-                if (count($valueData) && (variant_get_type($valueData) & VT_ARRAY)) {
+                if ((variant_get_type($valueData) & VT_ARRAY) && count($valueData)) {
                     foreach ($valueData as $byte) {
                         // Add the byte code to the byte string.
                         $binaryString .= chr((int)$byte);
@@ -419,7 +419,7 @@ final class RegistryKey
                 $stringArray = [];
                 // Enumerate over each sub string.
                 /** @noinspection PhpParamsInspection */
-                if (count($valueData) && (variant_get_type($valueData) & VT_ARRAY)) {
+                if ((variant_get_type($valueData) & VT_ARRAY) && count($valueData)) {
                     foreach ($valueData as $subValueData) {
                         $stringArray[] = (string)$subValueData;
                     }
