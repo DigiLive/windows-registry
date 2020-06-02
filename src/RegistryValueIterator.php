@@ -88,7 +88,7 @@ class RegistryValueIterator implements Iterator
 
         // Attempt to enumerate values.
         $errorCode = $this->handle->enumValues(
-            $this->registryKey->getHive(),
+            $this->registryKey->getHive(false),
             $this->registryKey->getQualifiedName(),
             $this->valueNames,
             $this->valueTypes

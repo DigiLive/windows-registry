@@ -127,7 +127,7 @@ class RegistryKeyIterator implements RecursiveIterator
 
         // Enumerate subKeys.
         $errorCode = $this->handle->enumKey(
-            $this->registryKey->getHive(),
+            $this->registryKey->getHive(false),
             $this->registryKey->getQualifiedName(),
             $this->subKeyNames
         );

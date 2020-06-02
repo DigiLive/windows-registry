@@ -74,14 +74,27 @@ final class RegistryKey
     /**
      * Get the registry hive the key is located in.
      *
-     * Note: Although a hive is represented as a hex number, which is an int, php will cast this value into a float or
-     * double because the value causes an overflow.
+     * The method will return the hive as three different types, defined by the parameter and the 32bit or 64 bit
+     * version of php.
      *
-     * @return float Hive of the key.
+     * <pre>
+     * Parameter value: 32b:    Return type:
+     * false            d.c.    VARIANT
+     * true             true    float
+     * true             false   int
+     * </pre>
+     *
+     * @param bool $asNumber True to return the hive as number, False to return the hive as a variant.
+     *
+     * @return int|float|VARIANT Hive of the key.
      */
-    public function getHive(): float
+    public function getHive($asNumber = true)
     {
-        return $this->hive;
+        if (!$asNumber) {
+            return new VARIANT($this->hive, VT_R8);
+        }
+
+        return PHP_INT_SIZE == 4 ? (float)$this->hive : (int)$this->hive;
     }
 
     /**
@@ -150,7 +163,7 @@ final class RegistryKey
             }
 
             // Delete nested subKeys.
-            $this->deleteSubKeyRecursive($subKey->getName());
+            $this->deleteSubKeyRecursive($subKey->getQualifiedName());
         }
 
         $this->deleteSubKey($name);
@@ -249,11 +262,7 @@ final class RegistryKey
      */
     public function getName(): string
     {
-        if (strpos($this->name, '\\') !== false) {
-            return substr($this->name, strpos($this->name, '\\') + 1);
-        }
-
-        return $this->name;
+        return basename($this->name);
     }
 
     /**
@@ -290,13 +299,13 @@ final class RegistryKey
 
         // Define the rootKey properties.
         $returnValue['type'] = 'key';
-        $returnValue['name'] = $currentKey->getName();
+        $returnValue['name'] = $name;
         $returnValue['keys'] = [];
 
         // Get the rootKey's subKeys.
         foreach ($currentKey->getSubKeyIterator() as $subKey) {
             // Get nested sub keys and values.
-            $returnValue['keys'][] = $this->getSubKeyRecursive($subKey->getQualifiedName(), $includeValues);
+            $returnValue['keys'][] = $currentKey->getSubKeyRecursive($subKey->getName(), $includeValues);
         }
 
         if ($includeValues) {
@@ -314,7 +323,10 @@ final class RegistryKey
     }
 
     /**
-     * Get the fully-qualified name of the key.
+     * Get the qualified name of the key.
+     *
+     * The name includes:
+     * - All of the keyNames in the hierarchic sequence above this key and the name of the key itself.
      *
      * @return string Name of the key.
      */
