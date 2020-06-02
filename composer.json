@@ -16,6 +16,9 @@
             "homepage": "http://stephencoakley.com"
         }
     ],
+    "replace": {
+        "coderstephen/windows-registry": "<=v0.9.1"
+    },
     "require": {
         "php": "^7.2",
         "ext-com_dotnet": "*"

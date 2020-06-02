@@ -280,7 +280,7 @@ class RegistryKeyTest extends TestCase
     /**
      * Test getting the type of a value.
      *
-     * Note: This test doesn't use the mocked registry handle, but instantiate a real one!
+     * Note: This test doesn't use the mocked registry handle, but instantiates a real one!
      *       It will actually read from the registry.
      */
     public function testGetValueType()
