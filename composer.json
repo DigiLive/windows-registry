@@ -17,7 +17,7 @@
         }
     ],
     "replace": {
-        "coderstephen/windows-registry": "<=v0.9.1"
+        "coderstephen/windows-registry": "v0.9.1"
     },
     "require": {
         "php": "^7.2",
