@@ -139,7 +139,7 @@ final class RegistryKey
             throw new OperationFailedException("Failed to create key \"{$subKeyName}\".");
         }
 
-        return new static($this->handle, $this->hive, $name);
+        return new static($this->handle, $this->hive, $subKeyName);
     }
 
     /**
