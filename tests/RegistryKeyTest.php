@@ -206,8 +206,11 @@ class RegistryKeyTest extends TestCase
     {
         self::$FollowingTestStdRegProvResult = 1;
         $key                                 = $this->getSomeKey();
+        $newSubKey = $key->createSubKey('newKey');
 
-        $this->assertInstanceOf(RegistryKey::class, $key->createSubKey('newKey'));
+        $this->assertInstanceOf(RegistryKey::class, $newSubKey);
+        $this->assertEquals($key->getName() . '\newKey', $newSubKey->getQualifiedName());
+        $this->assertEquals('newKey', $newSubKey->getName());
     }
 
     /**

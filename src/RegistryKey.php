@@ -139,7 +139,7 @@ final class RegistryKey
             throw new OperationFailedException("Failed to create key \"{$subKeyName}\".");
         }
 
-        return new static($this->handle, $this->hive, $name);
+        return new static($this->handle, $this->hive, $subKeyName);
     }
 
     /**
@@ -256,13 +256,16 @@ final class RegistryKey
     }
 
     /**
-     * Get the local (unqualified) name of the key.
+     * Get the qualified name of the key.
+     *
+     * The name includes:
+     * - All of the keyNames in the hierarchic sequence above this key and the name of the key itself.
      *
      * @return string Name of the key.
      */
-    public function getName(): string
+    public function getQualifiedName(): string
     {
-        return basename($this->name);
+        return $this->name;
     }
 
     /**
@@ -311,11 +314,11 @@ final class RegistryKey
         if ($includeValues) {
             // Get the rootKey Values.
             $returnValue['values'] = [];
-            $i                     = 0;
+            $valueIterator         = 0;
             foreach ($currentKey->getValueIterator() as $valueName => $valueValue) {
-                $returnValue['values'][$i]['type']    = $currentKey->getValueType($valueName);
-                $returnValue['values'][$i]['name']    = $valueName;
-                $returnValue['values'][$i++]['value'] = $valueValue;
+                $returnValue['values'][$valueIterator]['type']    = $currentKey->getValueType($valueName);
+                $returnValue['values'][$valueIterator]['name']    = $valueName;
+                $returnValue['values'][$valueIterator++]['value'] = $valueValue;
             }
         }
 
@@ -323,16 +326,13 @@ final class RegistryKey
     }
 
     /**
-     * Get the qualified name of the key.
-     *
-     * The name includes:
-     * - All of the keyNames in the hierarchic sequence above this key and the name of the key itself.
+     * Get the local (unqualified) name of the key.
      *
      * @return string Name of the key.
      */
-    public function getQualifiedName(): string
+    public function getName(): string
     {
-        return $this->name;
+        return basename($this->name);
     }
 
     /**

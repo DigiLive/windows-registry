@@ -26,6 +26,8 @@ Use [Composer](http://getcomposer.org):
 > composer require digilive/windows-registry:~0.10
 ```
 
+Note: This package replaces package coderstephen/windows-registry v0.9.1 which has been abandoned.
+
 ## Documentation
 Full API documentation is available online [here](https://docs.microsoft.com/en-us/previous-versions/windows/desktop/regprov/stdregprov).
 
